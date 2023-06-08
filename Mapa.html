@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mapa de Lugares</title>
+  <style>
+    #map {
+      height: 400px;
+      width: 100%;
+    }
+
+    .navbar {
+      background-color: #333;
+      overflow: hidden;
+    }
+
+    .navbar a {
+      float: left;
+      color: #f2f2f2;
+      text-align: center;
+      padding: 14px 16px;
+      text-decoration: none;
+      font-size: 17px;
+    }
+
+    .navbar a:hover {
+      background-color: #ddd;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <a href="#">Inicio</a>
+    <a href="#">Países</a>
+    <a href="#">Contacto</a>
+  </div>
+  <h1>Mapa de Lugares</h1>
+  <div>
+    <select id="countrySelect" onchange="changeCountry()">
+      <option value="ny">Nueva York</option>
+      <option value="sv">El Salvador</option>
+      <option value="hn">Honduras</option>
+      <option value="gt">Guatemala</option>
+    </select>
+    <select id="citySelect" onchange="changeCity()"></select>
+    <input type="text" id="placeInput" placeholder="Buscar lugar">
+    <button onclick="searchPlace()">Buscar</button>
+  </div>
+  <div>
+    <input type="text" id="originInput" placeholder="Ingrese su ubicación">
+    <button onclick="searchRoute()">Obtener Ruta</button>
+  </div>
+  <div id="map"></div>
+
+  <script>
+    var map;
+    var directionsService;
+    var directionsRenderer;
+    var userLocationMarker;
+
+    function initMap() {
+      var center = { lat: 40.7128, lng: -74.0060 }; // Coordenadas de Nueva York
+
+      var mapOptions = {
+        zoom: 12,
+        center: center
+      };
+
+      map = new google.maps.Map(document.getElementById('map'), mapOptions);
+      directionsService = new google.maps.DirectionsService();
+      directionsRenderer = new google.maps.DirectionsRenderer();
+      directionsRenderer.setMap(map);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          var userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          addUserLocationMarker(userLocation);
+          map.setCenter(userLocation);
+        }, function() {
+          alert('No se pudo obtener la ubicación del usuario. Ingrese su ubicación manualmente.');
+        });
+      } else {
+        alert('El navegador no soporta la geolocalización. Ingrese su ubicación manualmente.');
+      }
+    }
+
+    var citiesByCountry = {
+      ny: ['Nueva York'],
+      sv: ['San Salvador', 'Santa Ana'],
+      hn: ['Tegucigalpa', 'San Pedro Sula'],
+      gt: ['Ciudad de Guatemala', 'Quetzaltenango']
+    };
+
+    function changeCountry() {
+      var select = document.getElementById('countrySelect');
+      var selectedValue = select.value;
+
+      var citySelect = document.getElementById('citySelect');
+      var cities = citiesByCountry[selectedValue];
+      citySelect.innerHTML = '';
+
+      if (cities) {
+        cities.forEach(function(city) {
+          var option = document.createElement('option');
+          option.value = city;
+          option.textContent = city;
+          citySelect.appendChild(option);
+        });
+      }
+    }
+
+    function changeCity() {
+      var citySelect = document.getElementById('citySelect');
+      var selectedCity = citySelect.value;
+
+      // Aquí puedes hacer algo con la ciudad seleccionada, como mostrar lugares específicos disponibles en esa ciudad.
+    }
+
+    function searchPlace() {
+      var placeInput = document.getElementById('placeInput');
+      var placeName = placeInput.value;
+
+      var citySelect = document.getElementById('citySelect');
+      var cityName = citySelect.value;
+
+      var locationQuery = placeName + ', ' + cityName;
+
+      var geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: locationQuery }, function(results, status) {
+        if (status === 'OK' && results.length > 0) {
+          var location = results[0].geometry.location;
+          addMarker(location);
+          map.setCenter(location);
+        } else {
+          alert('No se pudo encontrar el lugar: ' + status);
+        }
+      });
+    }
+
+    function addUserLocationMarker(location) {
+      if (userLocationMarker) {
+        userLocationMarker.setMap(null);
+      }
+
+      userLocationMarker = new google.maps.Marker({
+        position: location,
+        map: map,
+        title: 'Tu ubicación'
+      });
+    }
+
+    function addMarker(location) {
+      var marker = new google.maps.Marker({
+        position: location,
+        map: map,
+        title: 'Lugar buscado'
+      });
+    }
+
+    function searchRoute() {
+      var originInput = document.getElementById('originInput');
+      var originAddress = originInput.value;
+
+      var placeInput = document.getElementById('placeInput');
+      var placeName = placeInput.value;
+
+      var citySelect = document.getElementById('citySelect');
+      var cityName = citySelect.value;
+
+      var locationQuery = placeName + ', ' + cityName;
+
+      var geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: locationQuery }, function(results, status) {
+        if (status === 'OK' && results.length > 0) {
+          var destination = results[0].geometry.location;
+
+          if (originAddress) {
+            geocoder.geocode({ address: originAddress }, function(results, status) {
+              if (status === 'OK' && results.length > 0) {
+                var originLocation = results[0].geometry.location;
+
+                var request = {
+                  origin: originLocation,
+                  destination: destination,
+                  travelMode: 'DRIVING'
+                };
+
+                directionsService.route(request, function(result, status) {
+                  if (status === 'OK') {
+                    directionsRenderer.setDirections(result);
+                  } else {
+                    alert('No se pudo trazar la ruta: ' + status);
+                  }
+                });
+              } else {
+                alert('No se pudo encontrar la ubicación de origen: ' + status);
+              }
+            });
+          } else {
+            alert('Ingrese una ubicación de origen válida.');
+          }
+        } else {
+          alert('No se pudo encontrar el lugar: ' + status);
+        }
+      });
+    }
+
+    function clearDirections() {
+      directionsRenderer.setDirections({ routes: [] });
+    }
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD54E-tfB3c5lqTwaS8siAi7i1-_qZ2qx0&callback=initMap" async defer></script>
+</body>
+</html>
+
+
